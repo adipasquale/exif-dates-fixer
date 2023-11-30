@@ -1,4 +1,4 @@
-import "./App.css"
+import "./PhotosCollection.css"
 import { convertFileSrc } from '@tauri-apps/api/tauri'
 
 export default function PhotosCollection({ fileInfos, selectedFileInfo, setSelectedFileInfo }) {

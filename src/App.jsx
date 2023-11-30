@@ -1,18 +1,24 @@
-import { useEffect, useState } from "react"
+import "./App.css"
+
+import { useEffect, useState, useLayoutEffect } from "react"
 import { invoke } from "@tauri-apps/api/tauri"
 import { open } from '@tauri-apps/api/dialog'
 import { exists, BaseDirectory, readTextFile, writeTextFile } from '@tauri-apps/api/fs'
-import "./App.css"
 import { HotkeysProvider, useHotkeys } from "react-hotkeys-hook"
 
 import Sidebar from "./Sidebar"
-import PhotosCollection from "./photosCollection"
+import PhotosCollection from "./PhotosCollection"
 
 function App() {
   const [dirPath, setDirPath] = useState("")
-  const [fileInfos, setFilesInfos] = useState([])
   const [selectedFileInfo, setSelectedFileInfo] = useState(null)
   const [newDate, onChangeNewDate] = useState("2020-03-04")
+
+  const [fileInfosRaw, setFilesInfosRaw] = useState([])
+  const fileInfos = fileInfosRaw
+    .map((fi) => ({ ...fi, dateParsed: new Date(fi.date) }))
+    .sort((a, b) => b.dateParsed - a.dateParsed)
+    .map((fi, index) => ({ ...fi, index }))
 
   async function selectDirPath() {
     const newDirPath = await open({ directory: true })
@@ -35,47 +41,67 @@ function App() {
 
   useEffect(() => {
     async function init() {
-      setFilesInfos(
-        (await invoke("listdir", { dirpath: dirPath }))
-          .map((fi) => ({ ...fi, dateParsed: new Date(fi.date) }))
-          .sort((a, b) => b.dateParsed - a.dateParsed)
-          .map((fi, index) => ({ ...fi, index }))
-      )
+      setFilesInfosRaw(await invoke("listdir", { dirpath: dirPath }))
     }
     init()
   }, [dirPath])
 
-  useHotkeys('j', () => {
+  function selectAndScrollTo(fileInfo) {
+    setSelectedFileInfo(fileInfo)
+    setTimeout(() => {
+      const elt = document.querySelector(`.photo[data-path="${fileInfo.path}"]`)
+      const rect = elt.getBoundingClientRect()
+      if (rect.top > 0 && rect.bottom < window.innerHeight) return
+      elt.scrollIntoView()
+    }, 50)
+  }
+
+  useHotkeys('j, left', () => {
     if (!selectedFileInfo || selectedFileInfo.index <= 0) return
-    setSelectedFileInfo(fileInfos[selectedFileInfo.index - 1])
+    selectAndScrollTo(fileInfos[selectedFileInfo.index - 1])
   })
 
-  useHotkeys('k', () => {
+  useHotkeys('k, right', () => {
     if (!selectedFileInfo || selectedFileInfo.index >= fileInfos.length - 1) return
-    setSelectedFileInfo(fileInfos[selectedFileInfo.index + 1])
+    selectAndScrollTo(fileInfos[selectedFileInfo.index + 1])
+  })
+
+  function getColumnsPerRow() {
+    const grid = document.querySelector(".photosGrid")
+    if (!grid) return 0
+    const gridComputedStyle = window.getComputedStyle(grid)
+    return gridComputedStyle.getPropertyValue("grid-template-columns").split(" ").length
+  }
+
+  useHotkeys('down', (e) => {
+    e.preventDefault()
+    if (!selectedFileInfo) return
+    const newIndex = selectedFileInfo.index + getColumnsPerRow()
+    if (newIndex >= fileInfos.length) return
+    selectAndScrollTo(fileInfos[newIndex])
+  })
+
+  useHotkeys('up', (e) => {
+    e.preventDefault()
+    if (!selectedFileInfo) return
+    const newIndex = selectedFileInfo.index - getColumnsPerRow()
+    if (newIndex < 0) return
+    selectAndScrollTo(fileInfos[newIndex])
   })
 
   useHotkeys('d', async () => {
     if (!selectedFileInfo) return
     await invoke("rmphoto", { path: selectedFileInfo.path })
     setSelectedFileInfo(fileInfos[selectedFileInfo.index + 1])
-    setFilesInfos(fileInfos.filter(fi => fi.path !== selectedFileInfo.path))
+    setFilesInfosRaw(fileInfos.filter(fi => fi.path !== selectedFileInfo.path))
   })
 
 
   async function onSubmitNewDate() {
     let fileInfo = await invoke("set_date", { path: selectedFileInfo.path, date: newDate })
     fileInfo.dateParsed = new Date(fileInfo.date)
-    const index = fileInfos.findIndex(fi => fi.path === selectedFileInfo.path)
-    let newFileInfos = fileInfos.slice()
-    newFileInfos[index] = fileInfo
-    newFileInfos.sort((a, b) => b.dateParsed - a.dateParsed)
-    newFileInfos = newFileInfos.map((fi, index) => ({ ...fi, index }))
-    setFilesInfos(newFileInfos)
-    setSelectedFileInfo(newFileInfos.find(fi => fi.path === fileInfo.path))
-    setTimeout(() => {
-      document.querySelector(`.photo[data-path="${fileInfo.path}"]`).scrollIntoView()
-    }, 50)
+    setFilesInfosRaw([fileInfo, ...fileInfos.filter(fi => fi.path !== fileInfo.path)])
+    selectAndScrollTo(fileInfo)
   }
 
   return (
