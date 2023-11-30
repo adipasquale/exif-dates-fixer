@@ -45,7 +45,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "com.exif-dates-fixer.app",
       "targets": "all"
     },
     "security": {
@@ -63,6 +63,25 @@
         "height": 600,
         "maximized": true
       }
-    ]
+    ],
+    "cli": {
+      "subcommands": {
+        "set": {
+          "description": "Set the file's EXIF Original Date",
+          "args": [
+            {
+              "name": "path",
+              "index": 1,
+              "required": true
+            },
+            {
+              "name": "date",
+              "index": 2,
+              "required": true
+            }
+          ]
+        }
+      }
+    }
   }
 }

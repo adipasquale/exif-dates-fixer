@@ -17,11 +17,15 @@ fn rmphoto(path: &str) {
     std::fs::remove_file(path).expect("Unable to remove file");
 }
 
-fn main() {
-    // Uncomment to run CLI mode without Tauri
-    // let args: Vec<String> = std::env::args().collect();
-    // let dirpath = &args[1];
+#[tauri::command]
+fn set_date(path: &str, date: &str) -> FileInfo {
+    let date = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").unwrap();
+    let path = PathBuf::from(path);
+    let file_info = exif_dates_fixer::set_date(&path, &date);
+    file_info.unwrap()
+}
 
+fn main() {
     rexiv2::initialize().expect("Unable to initialize rexiv2");
     rexiv2::set_log_level(rexiv2::LogLevel::ERROR);
 
@@ -31,7 +35,7 @@ fn main() {
             app.get_window("main").unwrap().open_devtools();
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![listdir, rmphoto])
+        .invoke_handler(tauri::generate_handler![listdir, rmphoto, set_date])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

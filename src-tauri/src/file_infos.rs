@@ -5,6 +5,7 @@ use std::{collections::HashMap, path::PathBuf};
 #[derive(Debug)]
 pub struct FileInfo {
     pub path: PathBuf,
+    pub metadata: rexiv2::Metadata,
     pub filename: String,
     pub date: Option<chrono::NaiveDate>,
     pub exif_date_tags: HashMap<String, String>,
@@ -19,7 +20,7 @@ impl FileInfo {
             None
         };
 
-        let exif_date_tags = if let Some(metadata) = metadata {
+        let exif_date_tags = if let Some(metadata) = &metadata {
             extract_exif_date_tags(&metadata)
         } else {
             HashMap::new()
@@ -30,6 +31,7 @@ impl FileInfo {
             filename: path.file_name().unwrap().to_str().unwrap().to_string(),
             date,
             exif_date_tags,
+            metadata: metadata.unwrap(),
         }
     }
 }
@@ -90,14 +92,8 @@ fn parse_date(metadata: &rexiv2::Metadata) -> Option<chrono::NaiveDate> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers;
     use std::path::PathBuf;
-
-    fn seeds_pathbuf(name: &str) -> std::path::PathBuf {
-        let mut pathbuf: PathBuf = std::env::current_dir().unwrap();
-        pathbuf.push("tests-assets");
-        pathbuf.push(name);
-        pathbuf
-    }
 
     #[test]
     fn test_extract_exif_metadata() {
@@ -128,9 +124,10 @@ mod tests {
 
     #[test]
     fn test_extract_exif_date_tags() {
-        let metadata: rexiv2::Metadata =
-            rexiv2::Metadata::new_from_path(seeds_pathbuf("photos1/photo_2018_03_24_a.jpg"))
-                .unwrap();
+        let metadata: rexiv2::Metadata = rexiv2::Metadata::new_from_path(
+            test_helpers::seeds_pathbuf("photos1/photo_2018_03_24_a.jpg"),
+        )
+        .unwrap();
 
         let res = extract_exif_date_tags(&metadata);
         assert_eq!(res.len(), 3);
@@ -164,6 +161,10 @@ mod tests {
             date: chrono::NaiveDate::from_ymd_opt(2017, 2, 22),
             exif_date_tags: date_tags,
             filename: "photo_2017_02_22_a.jpg".to_string(),
+            metadata: rexiv2::Metadata::new_from_path(test_helpers::seeds_pathbuf(
+                "photos1/photo_2017_02_22_a.jpg",
+            ))
+            .unwrap(),
         };
         let serialized = serde_json::to_string(&fileinfo).unwrap();
         let unserialized: serde_json::Value = serde_json::from_str(&serialized).unwrap();

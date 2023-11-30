@@ -43,18 +43,12 @@ fn get_fileinfos(paths: Vec<PathBuf>) -> Vec<FileInfo> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_helpers;
     use std::ffi::OsStr;
-
-    fn seeds_pathbuf(name: &str) -> std::path::PathBuf {
-        let mut pathbuf: PathBuf = std::env::current_dir().unwrap();
-        pathbuf.push("tests-assets");
-        pathbuf.push(name);
-        pathbuf
-    }
 
     #[test]
     fn test_get_paths() {
-        let paths = get_paths(seeds_pathbuf("photos1").as_path());
+        let paths = get_paths(test_helpers::seeds_pathbuf("photos1").as_path());
         assert_eq!(paths.len(), 4);
         assert_eq!(
             paths[0].file_name(),
@@ -64,19 +58,19 @@ mod tests {
 
     #[test]
     fn test_get_paths_empty() {
-        let paths = get_paths(seeds_pathbuf("empty").as_path());
+        let paths = get_paths(test_helpers::seeds_pathbuf("empty").as_path());
         assert_eq!(paths.len(), 0);
     }
 
     #[test]
     fn test_get_paths_extra_files() {
-        let paths = get_paths(seeds_pathbuf("extra-files").as_path());
+        let paths = get_paths(test_helpers::seeds_pathbuf("extra-files").as_path());
         assert_eq!(paths.len(), 2);
     }
 
     #[test]
     fn test_get_paths_nested_folders() {
-        let paths = get_paths(seeds_pathbuf("photos-nested").as_path());
+        let paths = get_paths(test_helpers::seeds_pathbuf("photos-nested").as_path());
         assert_eq!(paths.len(), 2);
     }
 
